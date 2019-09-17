@@ -1,14 +1,31 @@
-# setup -------------------------------------------------------------------
+---
+output: 
+  bookdown::html_document2:
+    code_folding: show
+---
+
+# Clear Lake data wrangling {.tabset}
+
+```{r message = F, warning = F, results = 'hide', echo = F}
+knitr::opts_chunk$set(echo = TRUE, warning = F, message = F, fig.path = 'figs/', dev.args = list(family = 'serif'))
 
 library(tidyverse)
 library(readxl)
 library(lubridate)
 library(here)
+```
 
-# wrangle bio -------------------------------------------------------------
+## Biological results
 
+Import raw data:
+
+```{r}
 biodatraw <- read_excel(here('data/raw', 'Refined Biological Results.xlsx'))
+```
 
+Select station, lat, lon, date, time, parameter, value, result, and units. Take unique values.
+
+```{r}
 # selecting lat, lon, date, time, parameter, value, result, unit
 # taking unique values (making some assumptions)
 biodat <- biodatraw %>%
@@ -23,8 +40,11 @@ biodat <- biodatraw %>%
     unit = `ResultMeasure/MeasureUnitCode`
     ) %>%
   unique
+```
 
-# filtering out parameters with few observations, include microcystin and chlorophyll
+Filter out parameters with few observations (less than 1000), include microcystin and chlorophyll. 
+
+```{r}
 biodat <- biodat %>%
   group_by(param) %>%
   mutate(
@@ -33,10 +53,12 @@ biodat <- biodat %>%
   ungroup %>%
   filter(n > 1000 | grepl('^Microcystin|^Chloroph', param)) %>%
   select(-n)
+```
 
-# table(biodat[, c('param', 'unit')])
 
-# standardizing names for units
+Standardizing names for units.
+
+```{r}
 biodat <- biodat %>%
   mutate(
     unit = case_when(
@@ -49,18 +71,21 @@ biodat <- biodat %>%
       T ~ unit
     )
   )
+```
 
-# remove turbidy as FTU, JTU, don't know what this is
-# remove do sat as g/l
-# remove conductance as degree c
+
+Remove turbidy as FTU, JTU, don't know what this is. Remove do sat as g/l. Remove conductance as degree c.
+
+```{r}
 biodat <- biodat %>%
   filter(!(unit %in% c('FTU', 'JTU') & param %in% 'Turbidity')) %>%
   filter(!(unit %in% 'g/l' & param %in% 'Dissolved oxygen saturation')) %>%
   filter(!(unit %in% 'deg C' & param %in% 'Specific conductance'))
+```
 
-# table(biodat[, c('param', 'unit')])
+Standardizing values for different units.
 
-# standardizing values for different units
+```{r}
 biodat <- biodat %>%
   mutate(
     val = case_when(
@@ -87,9 +112,11 @@ biodat <- biodat %>%
     )
   )
 
-# final minor edits
-# rename some values in param
-# take daily avg for multiples
+```
+
+Final minor stuff, remove some values in param, take daily average of multiples. 
+
+```{r}
 biodat <- biodat %>%
   mutate(
     param = case_when(
@@ -103,8 +130,14 @@ biodat <- biodat %>%
   summarise_all(mean, na.rm = T) %>%
   filter(!is.na(val))
 
-# wrangle phy -------------------------------------------------------------
+head(biodat)
+```
 
+## Physical results
+
+Similar process as above. 
+
+```{r}
 phydatraw <- read_excel(here('data/raw', 'Refined Physical Result.xlsx'))
 
 # selecting station, date, time, parameter, value, result, unit
@@ -199,37 +232,50 @@ phydat <- phydat %>%
   group_by(station, date, param, unit) %>%
   summarise_all(mean, na.rm = T) %>%
   filter(!is.na(val))
+```
 
+```{r}
+head(phydat)
+```
 
-# join phydat with biodat -------------------------------------------------
+## Join biology and physical results
 
-# these seem to have the same data
+[download](https://github.com/SCCWRP/ClearLakeRisk/raw/master/data/alldat.csv)
 
+They are basically the same. 
+
+```{r}
 # join both
 alldat <- biodat %>%
   full_join(phydat, c('station', 'date', 'param', 'unit', 'val'))
 
-save(alldat, file = 'data/alldat.RData', compress = 'xz')
+head(alldat)
+```
 
-# lake discharge ----------------------------------------------------------
+## Flow data
 
+[download](https://github.com/SCCWRP/ClearLakeRisk/raw/master/data/disdat.csv)
+
+Import raw. 
+
+```{r}
 disdatraw <- read_excel(here('data/raw', 'Lake discharge.xlsx'), skip = 11)
+```
 
+Take daily average. 
+
+```{r}
 disdat <- disdatraw %>% 
   mutate(
-    Date = as.Date(Date)#, 
-    # Date = as.character(Date),
-    # Time = as.character(Time),
-    # Time = gsub('^.*\\s(.*)$', '\\1', Time)
-  ) %>% 
-  # unite(datetime, c('Date', 'Time')) %>% 
-  # mutate(datetime = ymd_hms(datetime, tz = Sys.timezone())) %>% 
+    Date = as.Date(Date)
+  ) %>%  
   select(
     Date, 
     discharge_cfs = `Dischage (cubic feet per second)`
   ) %>% 
   group_by(Date) %>% 
   summarise(discharge_cfs = mean(discharge_cfs, na.rm = T))
-  
-save(disdat, file = 'data/disdat.RData', compress = 'xz')
+
+head(disdat)
+```
 
