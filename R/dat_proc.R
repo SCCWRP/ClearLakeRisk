@@ -210,6 +210,7 @@ alldat <- biodat %>%
   full_join(phydat, c('station', 'date', 'param', 'unit', 'val'))
 
 save(alldat, file = 'data/alldat.RData', compress = 'xz')
+write.csv(alldat, file = here('data', 'alldat.csv'), row.names = F)
 
 # lake discharge ----------------------------------------------------------
 
@@ -232,4 +233,4 @@ disdat <- disdatraw %>%
   summarise(discharge_cfs = mean(discharge_cfs, na.rm = T))
   
 save(disdat, file = 'data/disdat.RData', compress = 'xz')
-
+write.csv(disdat, file = here('data', 'disdat.csv'), row.names = F)
