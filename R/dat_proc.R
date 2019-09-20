@@ -34,7 +34,7 @@ biodat <- biodat %>%
   filter(n > 1000 | grepl('^Microcystin|^Chloroph', param)) %>%
   select(-n)
 
-# table(biodat[, c('param', 'unit')])
+table(biodat[, c('param', 'unit')])
 
 # standardizing names for units
 biodat <- biodat %>%
@@ -206,8 +206,7 @@ phydat <- phydat %>%
 # these seem to have the same data
 
 # join both
-alldat <- biodat %>%
-  full_join(phydat, c('station', 'date', 'param', 'unit', 'val'))
+alldat <- full_join(biodat, phydat, c('station', 'date', 'param', 'unit'))
 
 save(alldat, file = 'data/alldat.RData', compress = 'xz')
 write.csv(alldat, file = here('data', 'alldat.csv'), row.names = F)
@@ -218,19 +217,14 @@ disdatraw <- read_excel(here('data/raw', 'Lake discharge.xlsx'), skip = 11)
 
 disdat <- disdatraw %>% 
   mutate(
-    Date = as.Date(Date)#, 
-    # Date = as.character(Date),
-    # Time = as.character(Time),
-    # Time = gsub('^.*\\s(.*)$', '\\1', Time)
-  ) %>% 
-  # unite(datetime, c('Date', 'Time')) %>% 
-  # mutate(datetime = ymd_hms(datetime, tz = Sys.timezone())) %>% 
+    date = as.Date(Date)
+  ) %>%  
   select(
-    Date, 
+    date, 
     discharge_cfs = `Dischage (cubic feet per second)`
   ) %>% 
-  group_by(Date) %>% 
+  group_by(date) %>% 
   summarise(discharge_cfs = mean(discharge_cfs, na.rm = T))
-  
+
 save(disdat, file = 'data/disdat.RData', compress = 'xz')
 write.csv(disdat, file = here('data', 'disdat.csv'), row.names = F)

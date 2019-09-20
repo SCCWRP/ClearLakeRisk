@@ -13,6 +13,8 @@ library(tidyverse)
 library(readxl)
 library(lubridate)
 library(here)
+library(sf)
+library(mapview)
 ```
 
 ## Biological results
@@ -267,15 +269,54 @@ Take daily average.
 ```{r}
 disdat <- disdatraw %>% 
   mutate(
-    Date = as.Date(Date)
+    date = as.Date(Date)
   ) %>%  
   select(
-    Date, 
+    date, 
     discharge_cfs = `Dischage (cubic feet per second)`
   ) %>% 
-  group_by(Date) %>% 
+  group_by(date) %>% 
   summarise(discharge_cfs = mean(discharge_cfs, na.rm = T))
 
 head(disdat)
 ```
+
+## Analysis
+
+```{r}
+
+# filter by station, parameter, all complete
+tomod <- alldat %>% 
+  filter(param %in% c('Microcystin', 'Chlorophyll a')) %>% 
+  filter(station %in%  'CA_BVR-CLV7') %>% 
+  select(-unit) %>% 
+  spread(param, val) %>% 
+  na.omit %>% 
+  left_join(disdat, by = 'date') %>% 
+  gather('param', 'val', `Chlorophyll a`, Microcystin, discharge_cfs)
+
+ggplot(tomod, aes(x = date, y = val)) + 
+  geom_line() + 
+  geom_point() + 
+  facet_wrap(~param, scales = 'free_y', ncol = 1)
+
+``` 
+
+## Map
+
+```{r}
+prj <- 4326
+
+tomap <- alldat %>% 
+  select(station, val, latitude, longitude) %>%
+  group_by(station, latitude, longitude) %>% 
+  summarise(n = n()) %>% 
+  unique %>% 
+  na.omit %>% 
+  st_as_sf(coords = c('longitude', 'latitude'), crs = prj)
+
+mapview(tomap, zcol = 'n')
+```
+
+
 
