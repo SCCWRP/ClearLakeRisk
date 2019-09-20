@@ -266,7 +266,7 @@ disdatraw <- read_excel(here('data/raw', 'Lake discharge.xlsx'), skip = 11)
 
 Take daily average. 
 
-```{r}
+```{r, fig.height = 3, fig.width = 8}
 disdat <- disdatraw %>% 
   mutate(
     date = as.Date(Date)
@@ -279,6 +279,10 @@ disdat <- disdatraw %>%
   summarise(discharge_cfs = mean(discharge_cfs, na.rm = T))
 
 head(disdat)
+
+ggplot(disdat, aes(x = date, y = discharge_cfs)) + 
+  geom_line() + 
+  scale_y_log10() 
 ```
 
 ## Analysis
